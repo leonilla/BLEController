@@ -46,26 +46,24 @@ def hex_to_rgb(hex_str):
 
 def main(on, off, color, bright):
     """Simple CLI for controlling Bluetooth LED strips."""
-    loop = asyncio.get_event_loop()
     controller = LEDController(ADDRESS)
 
     # 1. Power Logic (Command 04)
     if on: 
         # 7e 04 04 01 00 01 ff 00 ef       
         cmd = [0x7e, 0x04, 0x04, 0x01, 0x00, 0x01, 0xff, 0x00, 0xef]
-        loop.run_until_complete(controller.send_command(cmd))
-    
+        asyncio.run(controller.send_command(cmd))
     elif off:
         # 7e 04 04 01 00 00 ff 00 ef
         cmd = [0x7e, 0x04, 0x04, 0x01, 0x00, 0x00, 0xff, 0x00, 0xef]
-        loop.run_until_complete(controller.send_command(cmd))
+        asyncio.run(controller.send_command(cmd))
 
     # 2. Color Logic (Command 05)
     if color:
         r, g, b = hex_to_rgb(color)
         # 7e 07 05 03 ff 00 00 00 ef
         cmd = [0x7e, 0x07, 0x05, 0x03, r, g, b, 0x00, 0xef]
-        loop.run_until_complete(controller.send_command(cmd))
+        asyncio.run(controller.send_command(cmd))
 
     # 3. Brightness Logic (Command 01)
     if bright is not None:
@@ -73,7 +71,7 @@ def main(on, off, color, bright):
         val = max(0, min(100, bright))
         # 7e 04 01 0a 00 00 00 00 ef
         cmd = [0x7e, 0x04, 0x01, val, 0x00, 0x00, 0x00, 0x00, 0xef]
-        loop.run_until_complete(controller.send_command(cmd))
+        asyncio.run(controller.send_command(cmd))
 
 if __name__ == "__main__":
     main()
