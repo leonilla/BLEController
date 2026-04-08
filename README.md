@@ -20,7 +20,7 @@ Use this utility to find your strip's MAC address. You'll need it to establish a
 ### bledom_cli.py
 Command line interface, ideal for sending individual messages.
 
-
+Replace the `ADDRESS` in the script with your strip's actual MAC address.\
 Run `python bledom_cli.py` with options `--on`, `--off`, `--color RGB`, or `--bright int` to send the corresponding message to the light strip.\
 The client will establish a connection, send the message, and shut down.
 
