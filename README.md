@@ -4,15 +4,15 @@ Control utilities for ELK-BLEDOM LED strips.
 ELK-BLEDOM LED Strips are widely popular.\
 Manufacturers provide Android and Apple apps for controlling the strips remotely.\
 These apps use a proprietary protocol to communicate with the strip controller over Low Energy Bluetooth (BLE).\
-Sending messages using this proprietary protocol allows for the lights to be controlled from other devices (for more information about the protocol messages, see BLEDOM_PROTOCOL.md)\
+Sending messages using this proprietary protocol allows for the lights to be controlled from other devices (for more information about the protocol messages, see BLEDOM_PROTOCOL.md)
 
 Two utilities are provided:
 
 ### bledom_cli.py
-Command line interface, ideal for sending individual messages.\
+Command line interface, ideal for sending individual messages.
 
 ### bledom_gui.py
-Basic Control Panel: turn the lights on/off, change color, change brightness.\
+Basic Control Panel: turn the lights on/off, change color, change brightness.
 
 ## Installation
 Python 3 required.\
