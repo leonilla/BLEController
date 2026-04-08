@@ -6,8 +6,35 @@ import customtkinter as ctk
 from tkinter import colorchooser
 from bleak import BleakClient
 
-# --- CONFIGURATION & CONSTANTS ---
+# --- CONFIGURATION ---
 CONFIG_FILE = "config.json"
+WRITE_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"
+
+class DisconnectDialog(ctk.CTkToplevel):
+    """Custom confirmation dialog for a modern look."""
+    def __init__(self, parent, mac, on_confirm):
+        super().__init__(parent)
+        self.title("Confirm Disconnect")
+        self.geometry("300x150")
+        self.on_confirm = on_confirm
+        
+        self.label = ctk.CTkLabel(self, text=f"Close connection with:\n{mac}?", pady=20)
+        self.label.pack()
+
+        self.btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.btn_frame.pack(fill="x", padx=20)
+
+        self.confirm_btn = ctk.CTkButton(self.btn_frame, text="Confirm", fg_color="#d32f2f", hover_color="#b71c1c", width=100, command=self.do_confirm)
+        self.confirm_btn.pack(side="left", padx=10)
+
+        self.cancel_btn = ctk.CTkButton(self.btn_frame, text="Cancel", width=100, command=self.destroy)
+        self.cancel_btn.pack(side="right", padx=10)
+
+        self.grab_set() # Focus on this window
+
+    def do_confirm(self):
+        self.on_confirm()
+        self.destroy()
 
 class LEDLogic:
     """Handles the Background Bluetooth Thread and Bleak communication."""
@@ -44,8 +71,13 @@ class LEDLogic:
                     self.app.on_connection_success()
             
         except Exception as e:
-            self.app.update_status(f"Connection Error: {e}")
+            self.app.update_status(f"Error: {e}")
             self.app.on_connection_fail()
+
+    async def _disconnect(self):
+        if self.client:
+            await self.client.disconnect()
+            self.app.on_disconnect_complete()
 
     async def _send(self, payload):
         if self.client and self.client.is_connected:
@@ -58,56 +90,61 @@ class LEDLogic:
     def connect(self, address):
         asyncio.run_coroutine_threadsafe(self._connect(address), self.loop)
 
+    def disconnect(self):
+        asyncio.run_coroutine_threadsafe(self._disconnect(), self.loop)
+
     def send(self, payload):
         asyncio.run_coroutine_threadsafe(self._send(payload), self.loop)
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-
-        self.title("LED Controller Pro")
-        self.geometry("400x550")
+        self.title("ELK-BLEDOM Controller")
+        
         self.logic = LEDLogic(self)
-
-        # UI State
-        self.is_on = True
-        self.current_rgb = (255, 0, 0)
+        self.connected = False
         
         self.setup_ui()
         self.load_settings()
+        self.resizable(False, False)
+        self.update_idletasks()
+        self.geometry("400x550")
+        
 
     def setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
 
-        # --- PANEL 1: CONFIGURATION ---
-        self.config_frame = ctk.CTkFrame(self)
-        self.config_frame.grid(row=0, column=0, padx=20, pady=10, sticky="nsew")
+        # --- PANEL 1: CONFIGURATION (Bordered) ---
+        self.config_frame = ctk.CTkFrame(self, border_width=2, border_color="gray30")
+        self.config_frame.pack(padx=20, pady=(20, 10), fill="x")
         
-        ctk.CTkLabel(self.config_frame, text="MAC Address:", font=("Arial", 12, "bold")).pack(pady=(10,0))
+        ctk.CTkLabel(self.config_frame, text="CONNECTION SETTINGS", font=("Arial", 11, "bold")).pack(pady=10)
         self.mac_entry = ctk.CTkEntry(self.config_frame, placeholder_text="XX:XX:XX:XX:XX:XX", width=250)
-        self.mac_entry.pack(pady=5)
+        self.mac_entry.pack(pady=5, padx=20)
 
         self.launch_check = ctk.CTkCheckBox(self.config_frame, text="Connect on launch")
         self.launch_check.pack(pady=5)
 
-        self.conn_btn = ctk.CTkButton(self.config_frame, text="Connect", command=self.attempt_connection)
-        self.conn_btn.pack(pady=10)
+        self.conn_btn = ctk.CTkButton(self.config_frame, text="Connect", command=self.handle_connection_click)
+        self.conn_btn.pack(pady=15)
 
-        self.status_indicator = ctk.CTkLabel(self.config_frame, text="● Disconnected", text_color="red")
-        self.status_indicator.pack(pady=5)
+        self.status_indicator = ctk.CTkLabel(self.config_frame, text="● Disconnected", text_color="#ff4444")
+        self.status_indicator.pack(pady=(0, 10))
 
-        # --- PANEL 2: CONTROLS ---
-        self.ctrl_frame = ctk.CTkFrame(self)
-        self.ctrl_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        # --- PANEL 2: CONTROLS (Bordered) ---
+        self.ctrl_frame = ctk.CTkFrame(self, border_width=2, border_color="gray30")
+        self.ctrl_frame.pack(padx=20, pady=10, fill="x") # Using pack instead of grid
+        ctk.CTkLabel(self.ctrl_frame, text="DEVICE CONTROLS", font=("Arial", 11, "bold")).pack(pady=10)
+        
         
         # Power Switch
         self.power_switch = ctk.CTkSwitch(self.ctrl_frame, text="Power", command=self.toggle_power)
         self.power_switch.select()
-        self.power_switch.pack(pady=15)
+        self.power_switch.pack(pady=10)
 
         # Color Picker Button
-        self.color_btn = ctk.CTkButton(self.ctrl_frame, text="Select Color", fg_color="#ff0000", command=self.pick_color)
-        self.color_btn.pack(pady=15)
+        self.color_btn = ctk.CTkButton(self.ctrl_frame, text="Select Color", fg_color="#333333", command=self.pick_color)
+        self.color_btn.pack(pady=15, padx=40)
 
         # Brightness Slider
         ctk.CTkLabel(self.ctrl_frame, text="Brightness").pack()
@@ -116,55 +153,53 @@ class App(ctk.CTk):
         self.bright_slider.pack(pady=(0, 20))
 
         # Status Bar
-        self.status_bar = ctk.CTkLabel(self, text="Ready", anchor="w", fg_color="gray20")
-        self.status_bar.grid(row=2, column=0, sticky="ew")
+        self.status_bar = ctk.CTkLabel(self, text="  Ready", anchor="w", fg_color="#1a1a1a", height=25)
+        self.status_bar.pack(side="bottom", fill="x", pady=(10, 0))
 
         self.lock_controls()
 
-    # --- LOGIC METHODS ---
+    def handle_connection_click(self):
+        if not self.connected:
+            mac = self.mac_entry.get()
+            if mac:
+                self.update_status("Connecting...")
+                self.save_settings()
+                self.logic.connect(mac)
+        else:
+            DisconnectDialog(self, self.mac_entry.get(), self.logic.disconnect)
 
-    def load_settings(self):
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r") as f:
-                data = json.load(f)
-                self.mac_entry.insert(0, data.get("mac", ""))
-                if data.get("auto", False):
-                    self.launch_check.select()
-                    self.after(1000, self.attempt_connection)
+    def on_connection_success(self):
+        self.connected = True
+        self.status_indicator.configure(text="● Connected", text_color="#44ff44")
+        self.conn_btn.configure(text="Disconnect", fg_color="#d32f2f", hover_color="#b71c1c")
+        self.unlock_controls()
+        self.update_status("Connected successfully.")
 
-    def save_settings(self):
-        with open(CONFIG_FILE, "w") as f:
-            json.dump({"mac": self.mac_entry.get(), "auto": self.launch_check.get()}, f)
+    def on_disconnect_complete(self):
+        self.connected = False
+        self.status_indicator.configure(text="● Disconnected", text_color="#ff4444")
+        self.conn_btn.configure(text="Connect", fg_color=["#3B8ED0", "#1F6AA5"], hover_color=["#367E96", "#144870"])
+        self.lock_controls()
+        self.update_status("Disconnected.")
+
+    def on_connection_fail(self):
+        self.status_indicator.configure(text="● Failed", text_color="#ff4444")
+        self.lock_controls()
 
     def lock_controls(self):
         for child in self.ctrl_frame.winfo_children():
-            child.configure(state="disabled")
+            if isinstance(child, (ctk.CTkButton, ctk.CTkSlider, ctk.CTkSwitch)):
+                child.configure(state="disabled")
 
     def unlock_controls(self):
         for child in self.ctrl_frame.winfo_children():
-            child.configure(state="normal")
-
-    def attempt_connection(self):
-        mac = self.mac_entry.get()
-        if not mac: return
-        self.update_status("Connecting...")
-        self.save_settings()
-        self.logic.connect(mac)
-
-    def on_connection_success(self):
-        self.status_indicator.configure(text="● Connected", text_color="green")
-        self.unlock_controls()
-        self.update_status("Successfully connected.")
-
-    def on_connection_fail(self):
-        self.status_indicator.configure(text="● Failed", text_color="red")
-        self.lock_controls()
+            if isinstance(child, (ctk.CTkButton, ctk.CTkSlider, ctk.CTkSwitch)):
+                child.configure(state="normal")
 
     def update_status(self, msg):
-        self.status_bar.configure(text=msg)
+        self.status_bar.configure(text=f"  {msg}")
 
-    # --- COMMAND TRIGGERS ---
-
+    # --- UPDATED 9-BYTE COMMANDS ---
     def toggle_power(self):
         val = 0x01 if self.power_switch.get() else 0x00
         self.logic.send([0x7e, 0x04, 0x04, 0x01, 0x00, val, 0xff, 0x00, 0xef])
@@ -178,6 +213,21 @@ class App(ctk.CTk):
 
     def update_brightness(self, value):
         self.logic.send([0x7e, 0x04, 0x01, int(value), 0x00, 0x00, 0x00, 0x00, 0xef])
+
+    def load_settings(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    data = json.load(f)
+                    self.mac_entry.insert(0, data.get("mac", ""))
+                    if data.get("auto", False):
+                        self.launch_check.select()
+                        self.after(500, self.handle_connection_click)
+            except: pass
+
+    def save_settings(self):
+        with open(CONFIG_FILE, "w") as f:
+            json.dump({"mac": self.mac_entry.get(), "auto": self.launch_check.get()}, f)
 
 if __name__ == "__main__":
     app = App()
