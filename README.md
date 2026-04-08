@@ -22,9 +22,9 @@ Install dependencies.\
 ## Usage
 
 Run `python bledom_cli.py` with options `--on`, `--off`, `--color RGB`, or `--bright int` to send the corresponding message to the light strip.\
-The client will establish a connection, send the message, and shut down.\
+The client will establish a connection, send the message, and shut down.
 
 Run `python bledom_gui.py` to launch the control window.\
 Input the ELK-BLEDOM's MAC address and click connect.\
 By default, the window will remember the MAC address and attempt a connection on launch. If this is not desired, uncheck the corresponding box.\
-Once the connection has been established, use the buttons to control the lights.\
+Once the connection has been established, use the buttons to control the lights.
