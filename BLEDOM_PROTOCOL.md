@@ -9,7 +9,7 @@ ON  : 7e 04 04 01 00 01 ff 00 ef	(6th byte = 01)
 RED : 7e 07 05 03 ff 00 00 00 ef	RGB = FF 00 00\
 GRN : 7e 07 05 03 00 ff 00 00 ef	RGB = 00 FF 00\
 BLU : 7e 07 05 03 00 00 ff 00 ef	RGB = 00 00 FF\
-WHT : 7e 07 05 03 ff ff ff 00 ef	RGB = FF FF FF\
+WHT : 7e 07 05 03 ff ff ff 00 ef	RGB = FF FF FF
 
 ## SET BRIGHT Message: 7e 04 01 [VALUE] 00 00 00 ef
 10% : 7e 04 01 0a 00 00 00 00 ef --> 10% brightness (4th byte = 0a)\
