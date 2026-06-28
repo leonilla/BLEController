@@ -7,7 +7,7 @@ from tkinter import colorchooser
 from bleak import BleakClient
 
 # --- CONFIGURATION ---
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "bledom_gui_config.json"
 WRITE_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"
 
 class DisconnectDialog(ctk.CTkToplevel):
